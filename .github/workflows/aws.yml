@@ -1,1 +1,128 @@
-##piplein"
+name: Deploy to Amazon ECS
+
+on:
+  push:
+    branches:
+      - mainfff
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER_PROD: Monetae-Prod
+  ECS_SERVICE_PROD: svc-monetae-mstrans
+
+  ECR_REPOSITORY: ${{ github.ref == 'refs/heads/prod' && 'prd-moneate-mstrans' || (github.ref == 'refs/heads/development' && 'moneate-ms-transactiones' || (github.ref == 'refs/heads/qa' && 'moneate-qa-transactiones')) }}
+
+  ECS_TASK_DEFINITION: ${{ github.ref == 'refs/heads/main' && '.github/workflows/task-definition-prd.json' || (github.ref == 'refs/heads/development' && '.github/workflows/task-definitions.json' || (github.ref == 'refs/heads/qa' && '.github/workflows/task-definition-qa.json')) }}
+  CONTAINER_NAME: ${{ github.ref == 'refs/heads/main' && 'prd-trans' || (github.ref == 'refs/heads/development' && 'ms-trans' || (github.ref == 'refs/heads/qa' && 'mstrans-qa')) }}
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set Environment Variables Based on Branch
+      run: |
+        if [[ $GITHUB_REF == 'refs/heads/main' ]]; then
+          echo 'ECS_SERVICE=$ECS_SERVICE_PROD' >> $GITHUB_ENV
+          echo 'ECS_CLUSTER=Monetae-Prod' >> $GITHUB_ENV
+        elif [[ $GITHUB_REF == 'refs/heads/qa' ]]; then
+          echo 'ECS_SERVICE=$ECS_SERVICE_QA' >> $GITHUB_ENV
+          echo 'ECS_CLUSTER=Monetae-Cluster-QA' >> $GITHUB_ENV
+        elif [[ $GITHUB_REF == 'refs/heads/development' ]]; then
+          echo 'ECS_SERVICE=$ECS_SERVICE_DEV' >> $GITHUB_ENV
+          echo 'ECS_CLUSTER=Cluster-Moneate' >> $GITHUB_ENV
+        fi
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ 
+         github.ref == 'refs/heads/main' && secrets.AWS_ACCESS_KEY_ID_PROD || 
+         github.ref == 'refs/heads/qa' && secrets.AWS_ACCESS_KEY_ID_QA || 
+         github.ref == 'refs/heads/development' && secrets.AWS_ACCESS_KEY_ID 
+         }}
+        aws-secret-access-key: ${{ 
+         github.ref == 'refs/heads/main' && secrets.AWS_SECRET_ACCESS_KEY_PROD || 
+         github.ref == 'refs/heads/qa' && secrets.AWS_SECRET_ACCESS_KEY_QA || 
+         github.ref == 'refs/heads/development' && secrets.AWS_SECRET_ACCESS_KEY
+         }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+          node-version: '16'
+          registry-url: 'https://registry.npmjs.org/'
+
+    
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Set Image Tag Based on Branch
+      run: |
+        if [[ $GITHUB_REF == 'refs/heads/main' ]]; then
+          echo "IMAGE_TAG=prd" >> $GITHUB_ENV
+        elif [[ $GITHUB_REF == 'refs/heads/qa' ]]; then
+          echo "IMAGE_TAG=qa" >> $GITHUB_ENV
+        elif [[ $GITHUB_REF == 'refs/heads/development' ]]; then
+          echo "IMAGE_TAG=dev" >> $GITHUB_ENV
+        fi
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ env.IMAGE_TAG }}
+      run: |
+        docker build --build-arg IMAGE_TAG=$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: ${{ env.ECS_TASK_DEFINITION }}
+        container-name: ${{ env.CONTAINER_NAME }}
+        image: ${{ steps.build-image.outputs.image }}
+
+    - name: Deploy ECS task definition for production
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE_PROD }}
+        cluster: ${{ env.ECS_CLUSTER_PROD }}
+        wait-for-service-stability: true
+      if: github.ref == 'refs/heads/prod'
+
+    - name: Deploy ECS task definition for QA
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE_QA }}
+        cluster: ${{ env.ECS_CLUSTER_QA }}
+        wait-for-service-stability: true
+      if: github.ref == 'refs/heads/qa'
+
+    - name: Deploy ECS task definition for Development
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE_DEV }}
+        cluster: ${{ env.ECS_CLUSTER_DEV }}
+
+ #####       
+
+        
+        wait-for-service-stability: true
+      if: github.ref == 'refs/heads/development'
