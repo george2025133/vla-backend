@@ -8,7 +8,7 @@ on:
 env:
   AWS_REGION: us-east-1
   ECS_CLUSTER_PROD: Cluster-VLA
-  ECS_SERVICE_PROD: svc-backend
+  ECS_SERVICE_PROD: backend-curso-service-utcj2uci
 
   ECR_REPOSITORY: ${{ github.ref == 'refs/heads/main' && 'vla-backend' || (github.ref == 'refs/heads/development' && 'moneate-ms-transactiones' || (github.ref == 'refs/heads/qa' && 'moneate-qa-transactiones')) }}
 
@@ -103,7 +103,7 @@ jobs:
         service: ${{ env.ECS_SERVICE_PROD }}
         cluster: ${{ env.ECS_CLUSTER_PROD }}
         wait-for-service-stability: true
-      if: github.ref == 'refs/heads/prod'
+      if: github.ref == 'refs/heads/main'
 
     - name: Deploy ECS task definition for QA
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
