@@ -7,13 +7,13 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECS_CLUSTER_PROD: Monetae-Prod
-  ECS_SERVICE_PROD: svc-monetae-mstrans
+  ECS_CLUSTER_PROD: Cluster-VLA
+  ECS_SERVICE_PROD: svc-backend
 
-  ECR_REPOSITORY: ${{ github.ref == 'refs/heads/prod' && 'prd-moneate-mstrans' || (github.ref == 'refs/heads/development' && 'moneate-ms-transactiones' || (github.ref == 'refs/heads/qa' && 'moneate-qa-transactiones')) }}
+  ECR_REPOSITORY: ${{ github.ref == 'refs/heads/main' && 'vla-backend' || (github.ref == 'refs/heads/development' && 'moneate-ms-transactiones' || (github.ref == 'refs/heads/qa' && 'moneate-qa-transactiones')) }}
 
-  ECS_TASK_DEFINITION: ${{ github.ref == 'refs/heads/main' && '.github/workflows/task-definition-prd.json' || (github.ref == 'refs/heads/development' && '.github/workflows/task-definitions.json' || (github.ref == 'refs/heads/qa' && '.github/workflows/task-definition-qa.json')) }}
-  CONTAINER_NAME: ${{ github.ref == 'refs/heads/main' && 'prd-trans' || (github.ref == 'refs/heads/development' && 'ms-trans' || (github.ref == 'refs/heads/qa' && 'mstrans-qa')) }}
+  ECS_TASK_DEFINITION: ${{ github.ref == 'refs/heads/main' && '.github/workflows/task-definition.json' || (github.ref == 'refs/heads/development' && '.github/workflows/task-definitions.json' || (github.ref == 'refs/heads/qa' && '.github/workflows/task-definition-qa.json')) }}
+  CONTAINER_NAME: ${{ github.ref == 'refs/heads/main' && 'backend' || (github.ref == 'refs/heads/development' && 'ms-trans' || (github.ref == 'refs/heads/qa' && 'mstrans-qa')) }}
 
 permissions:
   contents: read
