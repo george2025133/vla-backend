@@ -45,12 +45,12 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ 
-         github.ref == 'refs/heads/main' && secrets.AWS_ACCESS_KEY_ID_PROD || 
+         github.ref == 'refs/heads/main' && secrets.AWS_ACCESS_KEY_ID || 
          github.ref == 'refs/heads/qa' && secrets.AWS_ACCESS_KEY_ID_QA || 
-         github.ref == 'refs/heads/development' && secrets.AWS_ACCESS_KEY_ID 
+         github.ref == 'refs/heads/development' && secrets.AWS_ACCESS_KEY_ID_DEV
          }}
         aws-secret-access-key: ${{ 
-         github.ref == 'refs/heads/main' && secrets.AWS_SECRET_ACCESS_KEY_PROD || 
+         github.ref == 'refs/heads/main' && secrets.AWS_SECRET_ACCESS_KEY || 
          github.ref == 'refs/heads/qa' && secrets.AWS_SECRET_ACCESS_KEY_QA || 
          github.ref == 'refs/heads/development' && secrets.AWS_SECRET_ACCESS_KEY
          }}
